@@ -1,0 +1,42 @@
+name: Example Usage
+
+on:
+  pull_request:
+    paths:
+      - 'package-lock.json'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  npm-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate npm lockfile diff
+        id: npm_diff
+        uses: ./
+        with:
+          base-ref: ${{ github.event.pull_request.base.ref || 'main' }}
+
+      - name: Comment PR with diff
+        if: steps.npm_diff.outputs.has_changes == 'true'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: npm-diff
+          message: |
+            ## 📦 NPM Dependency Changes
+            
+            **Summary:** ${{ steps.npm_diff.outputs.added_count }} added, ${{ steps.npm_diff.outputs.removed_count }} removed, ${{ steps.npm_diff.outputs.updated_count }} upgraded
+            
+            <details open>
+            <summary>View details</summary>
+            
+            ${{ steps.npm_diff.outputs.diff }}
+            
+            </details>

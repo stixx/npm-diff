@@ -1,0 +1,40 @@
+{
+  "name": "npm-diff",
+  "version": "1.0.0",
+  "description": "Generate a formatted diff of npm package-lock.json changes for pull requests",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "ncc build src/action.ts -o dist --minify --no-cache",
+    "lint": "eslint .",
+    "format": "prettier --check \"**/*.{ts,js,json,md}\"",
+    "format:fix": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "test": "node --import ts-node/register --test test/*.test.js"
+  },
+  "keywords": [
+    "npm",
+    "package-lock",
+    "diff",
+    "github-action"
+  ],
+  "author": "stixx",
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.56.0",
+    "@typescript-eslint/parser": "^8.56.0",
+    "@vercel/ncc": "^0.38.4",
+    "eslint": "^10.0.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "prettier": "^3.8.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.0"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/exec": "^1.1.1",
+    "@actions/github": "^5.1.1"
+  }
+}

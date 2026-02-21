@@ -1,0 +1,32 @@
+name: 'npm-diff'
+description: 'Generate a formatted diff of npm package-lock.json changes for pull requests'
+author: 'stixx'
+branding:
+  icon: 'package'
+  color: 'red'
+
+inputs:
+  base-ref:
+    description: 'Base branch reference for comparison (e.g., main, develop)'
+    required: false
+    default: 'main'
+  path:
+    description: 'Path to package-lock.json file'
+    required: false
+    default: 'package-lock.json'
+
+outputs:
+  has_changes:
+    description: 'Whether package-lock.json has changes (true/false)'
+  diff:
+    description: 'The formatted diff output as Markdown table'
+  added_count:
+    description: 'Number of packages added'
+  removed_count:
+    description: 'Number of packages removed'
+  updated_count:
+    description: 'Number of packages updated'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
