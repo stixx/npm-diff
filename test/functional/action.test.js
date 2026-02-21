@@ -67,7 +67,7 @@ test('Functional test: detects devDependency change in package.json', () => {
 
     // Run the action as a script
     const actionPath = path.join(root, 'src', 'action.ts');
-    execSync(`node --import ts-node/register ${actionPath}`, {
+    execSync(`node -r ts-node/register ${actionPath}`, {
       cwd: tempDir,
       env,
       stdio: 'inherit',
@@ -155,7 +155,7 @@ test('Functional test: detects package upgrade in package-lock.json', () => {
 
     // Run the action as a script
     const actionPath = path.join(root, 'src', 'action.ts');
-    execSync(`node --import ts-node/register ${actionPath}`, {
+    execSync(`node -r ts-node/register ${actionPath}`, {
       cwd: tempDir,
       env,
       stdio: 'inherit',

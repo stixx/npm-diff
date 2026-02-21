@@ -8,7 +8,7 @@
     "lint": "eslint .",
     "format": "prettier --check \"**/*.{ts,js,json,md}\"",
     "format:fix": "prettier --write \"**/*.{ts,js,json,md}\"",
-    "test": "node --import ts-node/register --test test/**/*.test.js"
+    "test": "node -r ts-node/register --test test/**/*.test.js"
   },
   "keywords": [
     "npm",
