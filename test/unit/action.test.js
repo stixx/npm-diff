@@ -74,7 +74,13 @@ test('parseLockfile handles package.json and devDependencies', () => {
 test('parseLockfile handles lockfile v3 packages', () => {
   const content = JSON.stringify({
     packages: {
-      '': { name: 'root', version: '1.0.0' },
+      '': {
+        name: 'root',
+        version: '1.0.0',
+        dependencies: {
+          pkg: '^1.1.0',
+        },
+      },
       'node_modules/pkg': { version: '1.1.0' },
     },
   });
