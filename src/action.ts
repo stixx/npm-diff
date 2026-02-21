@@ -37,6 +37,7 @@ export function parseLockfile(
     let packages: Record<string, PackageInfo | string> = {};
 
     if (data.packages) {
+      core.debug('Detected lockfile v2+ (packages found)');
       if (includeTransitive) {
         packages = { ...data.packages };
       } else {
@@ -58,12 +59,15 @@ export function parseLockfile(
           }
         }
       }
-    } else {
+    } else if (data.dependencies || data.devDependencies || data.optionalDependencies) {
+      core.debug('Detected lockfile v1 (dependencies found)');
       packages = {
         ...(data.dependencies || {}),
         ...(data.devDependencies || {}),
         ...(data.optionalDependencies || {}),
       };
+    } else {
+      core.debug('No packages or dependencies found in lockfile');
     }
 
     // Remove the root package entry if it exists to avoid comparing it
@@ -190,25 +194,32 @@ export function run(): void {
 
   // Get the merge base to ensure we only see changes from the current branch
   let baseRevision = `origin/${baseRef}`;
+  core.debug(`Base ref: ${baseRef}`);
   try {
-    const mergeBase = execSync(`git merge-base "origin/${baseRef}" HEAD`, {
+    const mergeBaseCommand = `git merge-base "origin/${baseRef}" HEAD`;
+    core.debug(`Running merge-base command: ${mergeBaseCommand}`);
+    const mergeBase = execSync(mergeBaseCommand, {
       maxBuffer: 50 * 1024 * 1024,
     })
       .toString()
       .trim();
     if (mergeBase) {
+      core.debug(`Found merge base: ${mergeBase}`);
       baseRevision = mergeBase;
     }
   } catch (err: unknown) {
     // If origin/baseRef fails, try just baseRef
     try {
-      const mergeBase = execSync(`git merge-base "${baseRef}" HEAD`).toString().trim();
+      const mergeBaseCommand = `git merge-base "${baseRef}" HEAD`;
+      core.debug(`Running backup merge-base command: ${mergeBaseCommand}`);
+      const mergeBase = execSync(mergeBaseCommand).toString().trim();
       if (mergeBase) {
+        core.debug(`Found backup merge base: ${mergeBase}`);
         baseRevision = mergeBase;
       }
     } catch {
       if (err instanceof Error) {
-        console.error('Error finding merge base:', err.message);
+        core.debug(`Error finding merge base: ${err.message}`);
       }
     }
   }
@@ -276,6 +287,10 @@ export function run(): void {
 
   const base = parseLockfile(lockfilePath, baseContent, includeTransitive);
   const head = parseLockfile(lockfilePath, null, includeTransitive);
+
+  core.debug(`Base packages found: ${Object.keys(base).length}`);
+  core.debug(`Head packages found: ${Object.keys(head).length}`);
+
   const changes = comparePackages(base, head);
   const markdown = formatMarkdown(changes);
 
