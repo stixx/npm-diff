@@ -31,7 +31,14 @@ export function parseLockfile(
   try {
     const content = contentStr || fs.readFileSync(path, 'utf8');
     const data: LockfileData = JSON.parse(content);
-    return data.packages || data.dependencies || {};
+    const packages = data.packages || data.dependencies || {};
+
+    // Remove the root package entry if it exists to avoid comparing it
+    if (packages['']) {
+      delete packages[''];
+    }
+
+    return packages;
   } catch {
     return {};
   }
@@ -47,11 +54,13 @@ export function comparePackages(
   const allPackages = new Set([...basePackages, ...headPackages]);
 
   for (const pkg of allPackages) {
-    if (pkg === '') continue;
-
     const inBase = basePackages.has(pkg);
     const inHead = headPackages.has(pkg);
     const name = pkg.replace('node_modules/', '');
+
+    // Skip packages that have no version (e.g., aliases or metadata without version)
+    if (inHead && !head[pkg].version) continue;
+    if (inBase && !base[pkg].version && !inHead) continue;
 
     if (!inBase && inHead) {
       changes.added.push({ name, version: head[pkg].version || 'unknown' });
@@ -149,9 +158,12 @@ export function run(): void {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
 
+    core.debug(`Changed files: ${changedFiles.join(', ')}`);
+    core.debug(`Checking for: ${lockfilePath}`);
+
     if (!changedFiles.includes(lockfilePath)) {
       core.setOutput('has_changes', 'false');
-      core.setOutput('diff', '_No changes to package-lock.json_');
+      core.setOutput('diff', `_No changes to ${lockfilePath}_`);
       core.setOutput('added_count', '0');
       core.setOutput('removed_count', '0');
       core.setOutput('updated_count', '0');
