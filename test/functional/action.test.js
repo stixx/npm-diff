@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports, no-undef */
 const { test } = require('node:test');
 const assert = require('node:assert');
 const { execSync } = require('child_process');
@@ -20,14 +21,14 @@ test('Functional test: detects devDependency change in package.json', () => {
 
     // Create initial package.json
     const pkgJson = {
-      name: "test-pkg",
-      version: "1.0.0",
+      name: 'test-pkg',
+      version: '1.0.0',
       dependencies: {
-        "axios": "1.0.0"
+        axios: '1.0.0',
       },
       devDependencies: {
-        "vite": "^4.3.9"
-      }
+        vite: '^4.3.9',
+      },
     };
     fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(pkgJson, null, 2));
     execSync('git add package.json', { cwd: tempDir });
@@ -38,9 +39,9 @@ test('Functional test: detects devDependency change in package.json', () => {
     execSync('git checkout -b feature', { cwd: tempDir });
 
     // 1. Upgrade vite (devDep)
-    pkgJson.devDependencies.vite = "^4.5.14";
+    pkgJson.devDependencies.vite = '^4.5.14';
     // 2. Add lodash (dep)
-    pkgJson.dependencies.lodash = "4.17.21";
+    pkgJson.dependencies.lodash = '4.17.21';
     // 3. Remove axios (dep)
     delete pkgJson.dependencies.axios;
 
@@ -61,15 +62,15 @@ test('Functional test: detects devDependency change in package.json', () => {
       INPUT_PATH: 'package.json',
       'INPUT_BASE-REF': 'main',
       GITHUB_OUTPUT: outputPath,
-      GITHUB_WORKSPACE: tempDir
+      GITHUB_WORKSPACE: tempDir,
     };
 
     // Run the action as a script
     const actionPath = path.join(root, 'src', 'action.ts');
     execSync(`node --import ts-node/register ${actionPath}`, {
-        cwd: tempDir,
-        env,
-        stdio: 'inherit'
+      cwd: tempDir,
+      env,
+      stdio: 'inherit',
     });
 
     const outputContent = fs.readFileSync(outputPath, 'utf8');
@@ -82,10 +83,9 @@ test('Functional test: detects devDependency change in package.json', () => {
     assert.match(outputContent, /vite \| Upgraded \| `\^4\.3\.9` \| `\^4\.5\.14`/);
     assert.match(outputContent, /lodash \| Added \| - \| `4\.17\.21`/);
     assert.match(outputContent, /axios \| Removed \| `1\.0\.0` \| -/);
-
   } finally {
     if (fs.existsSync(tempDir)) {
-       fs.rmSync(tempDir, { recursive: true, force: true });
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }
   }
 });
@@ -106,22 +106,22 @@ test('Functional test: detects package upgrade in package-lock.json', () => {
 
     // Create initial package-lock.json (v3)
     const lockfile = {
-      name: "test-pkg",
-      version: "1.0.0",
+      name: 'test-pkg',
+      version: '1.0.0',
       lockfileVersion: 3,
       requires: true,
       packages: {
-        "": {
-          name: "test-pkg",
-          version: "1.0.0",
+        '': {
+          name: 'test-pkg',
+          version: '1.0.0',
           dependencies: {
-            "axios": "^1.0.0"
-          }
+            axios: '^1.0.0',
+          },
         },
-        "node_modules/axios": {
-          "version": "1.0.0"
-        }
-      }
+        'node_modules/axios': {
+          version: '1.0.0',
+        },
+      },
     };
     fs.writeFileSync(path.join(tempDir, 'package-lock.json'), JSON.stringify(lockfile, null, 2));
     execSync('git add package-lock.json', { cwd: tempDir });
@@ -130,8 +130,8 @@ test('Functional test: detects package upgrade in package-lock.json', () => {
 
     // Create a new branch and upgrade dependency
     execSync('git checkout -b feature', { cwd: tempDir });
-    lockfile.packages["node_modules/axios"].version = "1.1.0";
-    lockfile.packages[""].dependencies.axios = "^1.1.0";
+    lockfile.packages['node_modules/axios'].version = '1.1.0';
+    lockfile.packages[''].dependencies.axios = '^1.1.0';
 
     fs.writeFileSync(path.join(tempDir, 'package-lock.json'), JSON.stringify(lockfile, null, 2));
     execSync('git add package-lock.json', { cwd: tempDir });
@@ -150,15 +150,15 @@ test('Functional test: detects package upgrade in package-lock.json', () => {
       // INPUT_PATH defaults to package-lock.json
       'INPUT_BASE-REF': 'main',
       GITHUB_OUTPUT: outputPath,
-      GITHUB_WORKSPACE: tempDir
+      GITHUB_WORKSPACE: tempDir,
     };
 
     // Run the action as a script
     const actionPath = path.join(root, 'src', 'action.ts');
     execSync(`node --import ts-node/register ${actionPath}`, {
-        cwd: tempDir,
-        env,
-        stdio: 'inherit'
+      cwd: tempDir,
+      env,
+      stdio: 'inherit',
     });
 
     const outputContent = fs.readFileSync(outputPath, 'utf8');
@@ -167,10 +167,9 @@ test('Functional test: detects package upgrade in package-lock.json', () => {
     assert.match(outputContent, /has_changes[\s\S]+true/);
     assert.match(outputContent, /updated_count[\s\S]+1/);
     assert.match(outputContent, /axios \| Upgraded \| `1\.0\.0` \| `1\.1\.0`/);
-
   } finally {
     if (fs.existsSync(tempDir)) {
-       fs.rmSync(tempDir, { recursive: true, force: true });
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }
   }
 });
