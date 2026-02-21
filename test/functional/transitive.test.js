@@ -70,8 +70,8 @@ test('Functional test: respects include-transitive input', () => {
     fs.writeFileSync(outputPath, '');
     const envDefault = {
       ...process.env,
-      'INPUT_BASE-REF': 'main',
-      'INPUT_INCLUDE-TRANSITIVE': 'false',
+      'INPUT_BASE_REF': 'main',
+      'INPUT_INCLUDE_TRANSITIVE': 'false',
       GITHUB_OUTPUT: outputPath,
       GITHUB_WORKSPACE: tempDir,
     };
@@ -97,8 +97,8 @@ test('Functional test: respects include-transitive input', () => {
     fs.writeFileSync(outputPath, '');
     const envTransitive = {
       ...process.env,
-      'INPUT_BASE-REF': 'main',
-      'INPUT_INCLUDE-TRANSITIVE': 'true',
+      'INPUT_BASE_REF': 'main',
+      'INPUT_INCLUDE_TRANSITIVE': 'true',
       GITHUB_OUTPUT: outputPath,
       GITHUB_WORKSPACE: tempDir,
     };

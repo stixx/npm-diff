@@ -168,9 +168,17 @@ export function formatMarkdown(changes: Changes): string {
 
 // Main execution
 export function run(): void {
-  const baseRef = core.getInput('base-ref') || 'main';
-  const lockfilePath = core.getInput('path') || 'package-lock.json';
-  const includeTransitive = core.getInput('include-transitive') === 'true';
+  const getCustomInput = (name: string) => {
+    return (
+      core.getInput(name) ||
+      process.env[`INPUT_${name.toUpperCase().replace(/-/g, '_')}`] ||
+      ''
+    );
+  };
+
+  const baseRef = getCustomInput('base-ref') || 'main';
+  const lockfilePath = getCustomInput('path') || 'package-lock.json';
+  const includeTransitive = getCustomInput('include-transitive') === 'true';
 
   // Check if lockfile exists
   if (!fs.existsSync(lockfilePath)) {
