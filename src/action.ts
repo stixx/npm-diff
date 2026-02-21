@@ -206,7 +206,7 @@ export function run(): void {
       if (mergeBase) {
         baseRevision = mergeBase;
       }
-    } catch (err2: unknown) {
+    } catch {
       if (err instanceof Error) {
         console.error('Error finding merge base:', err.message);
       }
