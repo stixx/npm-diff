@@ -7,8 +7,10 @@ interface PackageInfo {
 }
 
 interface LockfileData {
-  packages?: Record<string, PackageInfo>;
-  dependencies?: Record<string, PackageInfo>;
+  packages?: Record<string, PackageInfo | string>;
+  dependencies?: Record<string, PackageInfo | string>;
+  devDependencies?: Record<string, PackageInfo | string>;
+  optionalDependencies?: Record<string, PackageInfo | string>;
 }
 
 export interface PackageChange {
@@ -31,14 +33,33 @@ export function parseLockfile(
   try {
     const content = contentStr || fs.readFileSync(path, 'utf8');
     const data: LockfileData = JSON.parse(content);
-    const packages = data.packages || data.dependencies || {};
+    let packages: Record<string, PackageInfo | string> = {};
+
+    if (data.packages) {
+      packages = data.packages;
+    } else {
+      packages = {
+        ...(data.dependencies || {}),
+        ...(data.devDependencies || {}),
+        ...(data.optionalDependencies || {}),
+      };
+    }
 
     // Remove the root package entry if it exists to avoid comparing it
     if (packages['']) {
       delete packages[''];
     }
 
-    return packages;
+    const normalized: Record<string, PackageInfo> = {};
+    for (const [name, info] of Object.entries(packages)) {
+      if (typeof info === 'string') {
+        normalized[name] = { version: info };
+      } else if (info && typeof info === 'object') {
+        normalized[name] = info as PackageInfo;
+      }
+    }
+
+    return normalized;
   } catch {
     return {};
   }

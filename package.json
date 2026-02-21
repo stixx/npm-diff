@@ -1,6 +1,6 @@
 {
   "name": "npm-diff",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Generate a formatted diff of npm package-lock.json changes for pull requests",
   "main": "dist/index.js",
   "scripts": {
