@@ -182,7 +182,9 @@ export function run(): void {
     core.debug(`Changed files: ${changedFiles.join(', ')}`);
     core.debug(`Checking for: ${lockfilePath}`);
 
-    if (!changedFiles.includes(lockfilePath)) {
+    // Normalize path to match git diff output (no leading ./)
+    const normalizedPath = lockfilePath.replace(/^(\.\/)+/, '');
+    if (!changedFiles.includes(normalizedPath)) {
       core.setOutput('has_changes', 'false');
       core.setOutput('diff', `_No changes to ${lockfilePath}_`);
       core.setOutput('added_count', '0');
@@ -219,6 +221,9 @@ export function run(): void {
   core.setOutput('updated_count', changes.updated.length.toString());
 }
 
-if (require.main === module) {
+if (
+  (typeof require !== 'undefined' && require.main === module) ||
+  (typeof process !== 'undefined' && process.argv[1]?.endsWith('action.ts'))
+) {
   run();
 }

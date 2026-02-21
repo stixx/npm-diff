@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports, no-undef */
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { comparePackages, formatMarkdown, parseLockfile } = require('../src/action.ts');
+const { comparePackages, formatMarkdown, parseLockfile } = require('../../src/action.ts');
 
 test('comparePackages identifies added, removed and updated packages', () => {
   const base = {
