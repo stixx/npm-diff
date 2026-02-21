@@ -134,10 +134,11 @@ jobs:
 
 ## Inputs
 
-| Input      | Description                                                    | Required | Default             |
-| ---------- | -------------------------------------------------------------- | -------- | ------------------- |
-| `base-ref` | Base branch reference for comparison (e.g., `main`, `develop`) | No       | `main`              |
-| `path`     | Path to package-lock.json file                                 | No       | `package-lock.json` |
+| Input                | Description                                                    | Required | Default             |
+| -------------------- | -------------------------------------------------------------- | -------- | ------------------- |
+| `base-ref`           | Base branch reference for comparison (e.g., `main`, `develop`) | No       | `main`              |
+| `path`               | Path to package-lock.json file                                 | No       | `package-lock.json` |
+| `include-transitive` | Include transitive dependencies in the diff                    | No       | `false`             |
 
 ## Outputs
 
@@ -214,6 +215,16 @@ To compare against a branch other than `main`:
 - uses: stixx/npm-diff@v1
   with:
     base-ref: develop
+```
+
+### Include Transitive Dependencies
+
+By default, the action only shows changes for direct dependencies to keep the diff clean. To see all changes (including transitive dependencies):
+
+```yaml
+- uses: stixx/npm-diff@v1
+  with:
+    include-transitive: true
 ```
 
 ## Contributing
