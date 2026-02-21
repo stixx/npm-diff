@@ -60,7 +60,7 @@ test('Functional test: detects devDependency change in package.json', () => {
     const env = {
       ...process.env,
       INPUT_PATH: 'package.json',
-      'INPUT_BASE_REF': 'main',
+      INPUT_BASE_REF: 'main',
       GITHUB_OUTPUT: outputPath,
       GITHUB_WORKSPACE: tempDir,
     };
@@ -148,7 +148,7 @@ test('Functional test: detects package upgrade in package-lock.json', () => {
     const env = {
       ...process.env,
       // INPUT_PATH defaults to package-lock.json
-      'INPUT_BASE_REF': 'main',
+      INPUT_BASE_REF: 'main',
       GITHUB_OUTPUT: outputPath,
       GITHUB_WORKSPACE: tempDir,
     };

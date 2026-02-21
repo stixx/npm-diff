@@ -170,9 +170,7 @@ export function formatMarkdown(changes: Changes): string {
 export function run(): void {
   const getCustomInput = (name: string) => {
     return (
-      core.getInput(name) ||
-      process.env[`INPUT_${name.toUpperCase().replace(/-/g, '_')}`] ||
-      ''
+      core.getInput(name) || process.env[`INPUT_${name.toUpperCase().replace(/-/g, '_')}`] || ''
     );
   };
 
