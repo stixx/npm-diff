@@ -166,14 +166,24 @@ export function run(): void {
       baseRevision = mergeBase;
     }
   } catch (err: unknown) {
-    if (err instanceof Error) {
-      console.error('Error finding merge base:', err.message);
+    // If origin/baseRef fails, try just baseRef
+    try {
+      const mergeBase = execSync(`git merge-base "${baseRef}" HEAD`).toString().trim();
+      if (mergeBase) {
+        baseRevision = mergeBase;
+      }
+    } catch (err2: unknown) {
+      if (err instanceof Error) {
+        console.error('Error finding merge base:', err.message);
+      }
     }
   }
 
   // Check if lockfile changed
   try {
-    const diff = execSync(`git diff --name-only "${baseRevision}" HEAD`).toString();
+    const diffCommand = `git diff --name-only "${baseRevision}" HEAD`;
+    core.debug(`Running diff command: ${diffCommand}`);
+    const diff = execSync(diffCommand).toString();
     const changedFiles = diff
       .split('\n')
       .map((line) => line.trim())
@@ -203,10 +213,15 @@ export function run(): void {
   // Get base version of lockfile
   let baseContent = '{}';
   try {
-    baseContent = execSync(`git show "${baseRevision}:${lockfilePath}"`, {
+    const showCommand = `git show "${baseRevision}:${lockfilePath}"`;
+    core.debug(`Running show command: ${showCommand}`);
+    baseContent = execSync(showCommand, {
       stdio: ['pipe', 'pipe', 'ignore'],
     }).toString();
-  } catch {
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      core.debug(`Error running git show: ${err.message}`);
+    }
     // If it fails, baseContent remains '{}'
   }
 
