@@ -28,7 +28,8 @@ export interface Changes {
 
 export function parseLockfile(
   path: string,
-  contentStr: string | null = null
+  contentStr: string | null = null,
+  includeTransitive: boolean = false
 ): Record<string, PackageInfo> {
   try {
     const content = contentStr || fs.readFileSync(path, 'utf8');
@@ -36,7 +37,27 @@ export function parseLockfile(
     let packages: Record<string, PackageInfo | string> = {};
 
     if (data.packages) {
-      packages = data.packages;
+      if (includeTransitive) {
+        packages = { ...data.packages };
+      } else {
+        // For lockfile v3, we only want to compare the direct dependencies
+        // to keep the diff clean and avoid GitHub PR comment limits.
+        // Direct dependencies are listed in the root package ('')
+        const rootPackage = data.packages[''] as LockfileData | undefined;
+        const directDeps = new Set([
+          ...Object.keys(rootPackage?.dependencies || {}),
+          ...Object.keys(rootPackage?.devDependencies || {}),
+          ...Object.keys(rootPackage?.optionalDependencies || {}),
+        ]);
+
+        for (const [key, info] of Object.entries(data.packages)) {
+          if (key === '') continue;
+          const name = key.replace(/^node_modules\//, '');
+          if (directDeps.has(name) && !key.includes('/node_modules/')) {
+            packages[key] = info;
+          }
+        }
+      }
     } else {
       packages = {
         ...(data.dependencies || {}),
@@ -77,7 +98,7 @@ export function comparePackages(
   for (const pkg of allPackages) {
     const inBase = basePackages.has(pkg);
     const inHead = headPackages.has(pkg);
-    const name = pkg.replace('node_modules/', '');
+    const name = pkg.replace(/^node_modules\//, '');
 
     // Skip packages that have no version (e.g., aliases or metadata without version)
     if (inHead && !head[pkg].version) continue;
@@ -100,7 +121,9 @@ export function comparePackages(
 }
 
 export function getCompareLink(packageName: string): string {
-  return `[Compare](https://www.npmjs.com/package/${packageName}?activeTab=versions)`;
+  // Use only the package name without node_modules path
+  const name = packageName.split('node_modules/').pop() || packageName;
+  return `[Compare](https://www.npmjs.com/package/${name}?activeTab=versions)`;
 }
 
 export function formatMarkdown(changes: Changes): string {
@@ -145,8 +168,15 @@ export function formatMarkdown(changes: Changes): string {
 
 // Main execution
 export function run(): void {
-  const baseRef = core.getInput('base-ref') || 'main';
-  const lockfilePath = core.getInput('path') || 'package-lock.json';
+  const getCustomInput = (name: string) => {
+    return (
+      core.getInput(name) || process.env[`INPUT_${name.toUpperCase().replace(/-/g, '_')}`] || ''
+    );
+  };
+
+  const baseRef = getCustomInput('base-ref') || 'main';
+  const lockfilePath = getCustomInput('path') || 'package-lock.json';
+  const includeTransitive = getCustomInput('include-transitive') === 'true';
 
   // Check if lockfile exists
   if (!fs.existsSync(lockfilePath)) {
@@ -161,7 +191,11 @@ export function run(): void {
   // Get the merge base to ensure we only see changes from the current branch
   let baseRevision = `origin/${baseRef}`;
   try {
-    const mergeBase = execSync(`git merge-base "origin/${baseRef}" HEAD`).toString().trim();
+    const mergeBase = execSync(`git merge-base "origin/${baseRef}" HEAD`, {
+      maxBuffer: 50 * 1024 * 1024,
+    })
+      .toString()
+      .trim();
     if (mergeBase) {
       baseRevision = mergeBase;
     }
@@ -183,7 +217,9 @@ export function run(): void {
   try {
     const diffCommand = `git diff --name-only "${baseRevision}" HEAD`;
     core.debug(`Running diff command: ${diffCommand}`);
-    const diff = execSync(diffCommand).toString();
+    const diff = execSync(diffCommand, {
+      maxBuffer: 50 * 1024 * 1024,
+    }).toString();
     const changedFiles = diff
       .split('\n')
       .map((line) => line.trim())
@@ -206,6 +242,17 @@ export function run(): void {
     if (err instanceof Error) {
       console.error('Error running git diff:', err.message);
     }
+    // If git diff fails (e.g. shallow clone), we don't want to proceed with an empty base
+    // as it would report all dependencies as added.
+    core.setOutput('has_changes', 'false');
+    core.setOutput(
+      'diff',
+      `_Error comparing branches. This may be due to a shallow clone. Try setting fetch-depth: 0 in actions/checkout._`
+    );
+    core.setOutput('added_count', '0');
+    core.setOutput('removed_count', '0');
+    core.setOutput('updated_count', '0');
+    return;
   }
 
   core.setOutput('has_changes', 'true');
@@ -217,16 +264,18 @@ export function run(): void {
     core.debug(`Running show command: ${showCommand}`);
     baseContent = execSync(showCommand, {
       stdio: ['pipe', 'pipe', 'ignore'],
+      maxBuffer: 50 * 1024 * 1024,
     }).toString();
   } catch (err: unknown) {
     if (err instanceof Error) {
       core.debug(`Error running git show: ${err.message}`);
     }
     // If it fails, baseContent remains '{}'
+    // This could happen if the file didn't exist in the base branch
   }
 
-  const base = parseLockfile(lockfilePath, baseContent);
-  const head = parseLockfile(lockfilePath);
+  const base = parseLockfile(lockfilePath, baseContent, includeTransitive);
+  const head = parseLockfile(lockfilePath, null, includeTransitive);
   const changes = comparePackages(base, head);
   const markdown = formatMarkdown(changes);
 

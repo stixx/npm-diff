@@ -14,6 +14,10 @@ inputs:
     description: 'Path to package-lock.json file'
     required: false
     default: 'package-lock.json'
+  include-transitive:
+    description: 'Include transitive dependencies in the diff'
+    required: false
+    default: 'false'
 
 outputs:
   has_changes:
