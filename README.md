@@ -163,11 +163,11 @@ When used in a Pull Request, the action generates a summary and a detailed table
 <details open>
 <summary>View details</summary>
 
-| Packages | Operation | Base      | Target    | Link                                                                |
-| -------- | --------- | --------- | --------- | ------------------------------------------------------------------- |
-| express  | Upgraded  | `4.17.1`  | `4.18.2`  | [Compare](https://www.npmjs.com/package/express?activeTab=versions) |
-| lodash   | Upgraded  | `4.17.20` | `4.17.21` | [Compare](https://www.npmjs.com/package/lodash?activeTab=versions)  |
-| axios    | Added     | -         | `1.4.0`   | [Compare](https://www.npmjs.com/package/axios?activeTab=versions)   |
+| Packages | Operation | Base      | Target    | Link                                                              |
+| -------- | --------- | --------- | --------- | ----------------------------------------------------------------- |
+| express  | Upgraded  | `4.17.1`  | `4.18.2`  | [Compare](https://npmdiff.dev/express/4.17.1/4.18.2/)             |
+| lodash   | Upgraded  | `4.17.20` | `4.17.21` | [Compare](https://npmdiff.dev/lodash/4.17.20/4.17.21/)            |
+| axios    | Added     | -         | `1.4.0`   | [Details](https://www.npmjs.com/package/axios?activeTab=versions) |
 
 </details>
 

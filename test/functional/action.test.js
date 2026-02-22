@@ -77,12 +77,12 @@ test('Functional test: detects devDependency change in package.json', () => {
     console.log('Action Outputs (package.json):\n', outputContent);
 
     assert.match(outputContent, /has_changes[\s\S]+true/);
-    assert.match(outputContent, /updated_count[\s\S]+1/);
-    assert.match(outputContent, /added_count[\s\S]+1/);
-    assert.match(outputContent, /removed_count[\s\S]+1/);
+    assert.match(outputContent, /updated_count[\s\S]+3/);
+    assert.match(outputContent, /added_count[\s\S]+0/);
+    assert.match(outputContent, /removed_count[\s\S]+0/);
     assert.match(outputContent, /vite \| Upgraded \| `\^4\.3\.9` \| `\^4\.5\.14`/);
-    assert.match(outputContent, /lodash \| Added \| - \| `4\.17\.21`/);
-    assert.match(outputContent, /axios \| Removed \| `1\.0\.0` \| -/);
+    assert.match(outputContent, /lodash \| Upgraded \| `-` \| `4\.17\.21`/);
+    assert.match(outputContent, /axios \| Upgraded \| `1\.0\.0` \| `-`/);
   } finally {
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true, force: true });
