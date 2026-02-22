@@ -55,6 +55,9 @@ export function parseLockfile(
         for (const key of localPackageKeys) {
           const pkg = data.packages[key] as PackageInfo;
           if (pkg) {
+            // Include local packages as packages to compare (they have versions too)
+            packages[key] = pkg;
+
             const deps = {
               ...(pkg.dependencies || {}),
               ...(pkg.devDependencies || {}),
@@ -67,28 +70,43 @@ export function parseLockfile(
 
         for (const [key, info] of Object.entries(data.packages)) {
           if (key === '') continue;
-          const name = key.replace(/^node_modules\//, '');
-          // We only want top-level node_modules entries that are in our directDeps list
-          if (directDeps.has(name) && !key.includes('/node_modules/')) {
-            packages[key] = info;
+
+          // Check if this package is in our directDeps list
+          const name = key.replace(/^(.*node_modules\/)/, '');
+          if (directDeps.has(name)) {
+            // We want to include it if:
+            // 1. It's in a top-level node_modules (e.g., "node_modules/axios")
+            // 2. OR it's in a workspace's node_modules (e.g., "packages/pkg1/node_modules/axios")
+            // BUT we only want the "closest" one if there are multiple.
+            // Actually, npm-diff's current logic tries to be simple.
+            // Let's allow any node_modules entry as long as its name is in directDeps
+            // and it's not nested inside another node_modules (i.e. it's a direct dep of SOME local package)
+            if (!key.match(/\/node_modules\/.*\/node_modules\//)) {
+              packages[key] = info;
+            }
           }
         }
       }
     } else if (data.dependencies || data.devDependencies || data.optionalDependencies) {
       core.debug('Detected lockfile v1 (dependencies found)');
-      packages = {
+      // For v1, the data itself contains the root dependencies
+      packages[''] = data as unknown as PackageInfo;
+
+      const v1Deps = {
         ...(data.dependencies || {}),
         ...(data.devDependencies || {}),
         ...(data.optionalDependencies || {}),
       };
+      for (const [name, info] of Object.entries(v1Deps)) {
+        packages[name] = info;
+      }
     } else {
       core.debug('No packages or dependencies found in lockfile');
     }
 
     // Remove the root package entry if it exists to avoid comparing it
-    if (packages['']) {
-      delete packages[''];
-    }
+    // Wait, let's keep it if we want to detect changes in local packages
+    // Actually, in comparePackages we handle it.
 
     const normalized: Record<string, PackageInfo> = {};
     for (const [name, info] of Object.entries(packages)) {
@@ -113,13 +131,21 @@ export function comparePackages(
   const basePackages = new Set(Object.keys(base));
   const headPackages = new Set(Object.keys(head));
   const allPackages = new Set([...basePackages, ...headPackages]);
+  const allPackagesArray = Array.from(allPackages);
 
+  // Collect changes in resolved versions
+  const resolvedChanges = new Map<string, PackageChange>();
   for (const pkg of allPackages) {
     const inBase = basePackages.has(pkg);
     const inHead = headPackages.has(pkg);
-    const name = pkg.replace(/^node_modules\//, '');
+    const name = pkg.replace(/^(.*node_modules\/)/, '') || pkg;
 
-    // Skip packages that have no version (e.g., aliases or metadata without version)
+    // Skip local packages here, we handle them differently
+    if (!pkg.includes('node_modules')) {
+      continue;
+    }
+
+    // Skip packages that have no version
     if (inHead && !head[pkg].version) {
       core.debug(`Skipping package ${pkg} in head: no version found`);
       continue;
@@ -130,18 +156,74 @@ export function comparePackages(
     }
 
     if (!inBase && inHead) {
-      core.debug(`Package added: ${name} (${head[pkg].version})`);
-      changes.added.push({ name, version: head[pkg].version || 'unknown' });
+      resolvedChanges.set(name, { name, version: head[pkg].version || 'unknown' });
     } else if (inBase && !inHead) {
-      core.debug(`Package removed: ${name} (${base[pkg].version})`);
-      changes.removed.push({ name, version: base[pkg].version || 'unknown' });
+      resolvedChanges.set(name, {
+        name,
+        version: base[pkg].version || 'unknown',
+        oldVersion: base[pkg].version,
+      });
     } else if (inBase && inHead) {
       const baseVersion = base[pkg].version;
       const headVersion = head[pkg].version;
       if (baseVersion && headVersion && baseVersion !== headVersion) {
-        core.debug(`Package updated: ${name} (${baseVersion} -> ${headVersion})`);
-        changes.updated.push({ name, oldVersion: baseVersion, newVersion: headVersion });
+        resolvedChanges.set(name, { name, oldVersion: baseVersion, newVersion: headVersion });
       }
+    }
+  }
+
+  // Collect changes in constraints
+  const localPackageKeys = allPackagesArray.filter((pkg) => !pkg.includes('node_modules'));
+  for (const pkg of localPackageKeys) {
+    const basePkg = base[pkg];
+    const headPkg = head[pkg];
+
+    const allDeps = new Set([
+      ...Object.keys(basePkg?.dependencies || {}),
+      ...Object.keys(headPkg?.dependencies || {}),
+      ...Object.keys(basePkg?.devDependencies || {}),
+      ...Object.keys(headPkg?.devDependencies || {}),
+      ...Object.keys(basePkg?.optionalDependencies || {}),
+      ...Object.keys(headPkg?.optionalDependencies || {}),
+      ...Object.keys(basePkg?.peerDependencies || {}),
+      ...Object.keys(headPkg?.peerDependencies || {}),
+    ]);
+
+    for (const depName of allDeps) {
+      const baseConstraint =
+        basePkg?.dependencies?.[depName] ||
+        basePkg?.devDependencies?.[depName] ||
+        basePkg?.optionalDependencies?.[depName] ||
+        basePkg?.peerDependencies?.[depName];
+      const headConstraint =
+        headPkg?.dependencies?.[depName] ||
+        headPkg?.devDependencies?.[depName] ||
+        headPkg?.optionalDependencies?.[depName] ||
+        headPkg?.peerDependencies?.[depName];
+
+      if (baseConstraint !== headConstraint) {
+        const existingChange = resolvedChanges.get(depName);
+
+        if (!existingChange) {
+          // No resolved change, but constraint changed. We report it as an update.
+          changes.updated.push({
+            name: depName,
+            oldVersion: baseConstraint || '-',
+            newVersion: headConstraint || '-',
+          });
+        }
+      }
+    }
+  }
+
+  // Now add the resolved changes to the final changes object
+  for (const change of resolvedChanges.values()) {
+    if (change.oldVersion && !change.newVersion && change.version) {
+      changes.removed.push(change);
+    } else if (!change.oldVersion && change.version) {
+      changes.added.push(change);
+    } else {
+      changes.updated.push(change);
     }
   }
 

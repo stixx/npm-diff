@@ -89,7 +89,13 @@ test('parseLockfile handles lockfile v3 packages', () => {
 
   const packages = parseLockfile('package-lock.json', content);
 
-  assert.strictEqual(packages[''], undefined);
+  assert.deepStrictEqual(packages[''], {
+    name: 'root',
+    version: '1.0.0',
+    dependencies: {
+      pkg: '^1.1.0',
+    },
+  });
   assert.strictEqual(packages['node_modules/pkg'].version, '1.1.0');
 });
 
