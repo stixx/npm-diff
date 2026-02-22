@@ -54,9 +54,18 @@ test('formatMarkdown formats changes as a table', () => {
   };
   const markdown = formatMarkdown(changes);
   assert.match(markdown, /Packages \| Operation \| Base \| Target \| Link/);
-  assert.match(markdown, /a \| Added \| - \| `1.0.0` \|/);
-  assert.match(markdown, /r \| Removed \| `1.0.0` \| - \|/);
-  assert.match(markdown, /u \| Upgraded \| `1.0.0` \| `1.1.0` \|/);
+  assert.match(
+    markdown,
+    /a \| Added \| - \| `1.0.0` \| \[Details\]\(https:\/\/www.npmjs.com\/package\/a\?activeTab=versions\)/
+  );
+  assert.match(
+    markdown,
+    /r \| Removed \| `1.0.0` \| - \| \[Details\]\(https:\/\/www.npmjs.com\/package\/r\?activeTab=versions\)/
+  );
+  assert.match(
+    markdown,
+    /u \| Upgraded \| `1.0.0` \| `1.1.0` \| \[Compare\]\(https:\/\/npmdiff.dev\/compare\/u\/1.0.0\/1.1.0\)/
+  );
 });
 
 test('parseLockfile handles package.json and devDependencies', () => {

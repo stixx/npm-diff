@@ -230,10 +230,24 @@ export function comparePackages(
   return changes;
 }
 
-export function getCompareLink(packageName: string): string {
+export function getCompareLink(
+  packageName: string,
+  oldVersion?: string,
+  newVersion?: string
+): string {
   // Use only the package name without node_modules path
   const name = packageName.split('node_modules/').pop() || packageName;
-  return `[Compare](https://www.npmjs.com/package/${name}?activeTab=versions)`;
+
+  if (oldVersion && newVersion && oldVersion !== '-' && newVersion !== '-') {
+    const v1 = oldVersion.replace(/^[`^~]/, '').replace(/`$/, '');
+    const v2 = newVersion.replace(/^[`^~]/, '').replace(/`$/, '');
+
+    // Check if it's a valid version comparison (not a constraint like ^1.0.0 vs ^1.1.0)
+    // Actually npmdiff.dev might handle it, but it's better with exact versions.
+    return `[Compare](https://npmdiff.dev/compare/${name}/${v1}/${v2})`;
+  }
+
+  return `[Details](https://www.npmjs.com/package/${name}?activeTab=versions)`;
 }
 
 export function formatMarkdown(changes: Changes, includeTransitive: boolean = false): string {
@@ -275,8 +289,17 @@ export function formatMarkdown(changes: Changes, includeTransitive: boolean = fa
   ];
 
   for (const row of rows) {
+    const pkgChange =
+      changes.added.find((p) => p.name === row.name) ||
+      changes.removed.find((p) => p.name === row.name) ||
+      changes.updated.find((p) => p.name === row.name);
+
     output += `${row.name} | ${row.operation} | ${row.base} | ${row.target} | ${getCompareLink(
-      row.name
+      row.name,
+      pkgChange?.oldVersion ||
+        (pkgChange?.version && row.operation === 'Removed' ? pkgChange.version : undefined),
+      pkgChange?.newVersion ||
+        (pkgChange?.version && row.operation === 'Added' ? pkgChange.version : undefined)
     )}\n`;
   }
 
