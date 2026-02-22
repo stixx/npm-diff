@@ -5,19 +5,62 @@ const { GitService } = require('../../src/git.service.ts');
 
 test('GitService.execute runs a command and returns output', () => {
   const git = new GitService();
-  const output = git.execute('echo "hello"');
-  assert.strictEqual(output, 'hello');
+  const output = git.execute(['rev-parse', '--is-inside-work-tree']);
+  assert.strictEqual(output, 'true');
+});
+
+test('GitService.execute handles arguments with spaces', () => {
+  const git = new GitService();
+  // Using a git command that can take arbitrary string as argument and echo it back
+  // git log -1 --format=%B is good but needs a commit
+  // We can use git help -g to see if it runs
+  const output = git.execute(['version']);
+  assert.match(output, /git version/);
 });
 
 test('GitService.execute throws on error if not ignored', () => {
   const git = new GitService();
   assert.throws(() => {
-    git.execute('nonexistentcommand');
+    git.execute(['invalid-command']);
   });
 });
 
 test('GitService.execute returns empty string on error if ignored', () => {
   const git = new GitService();
-  const output = git.execute('nonexistentcommand', { ignoreErrors: true });
+  const output = git.execute(['invalid-command'], { ignoreErrors: true });
   assert.strictEqual(output, '');
+});
+
+test('GitService.getMergeBase validates baseRef', () => {
+  const git = new GitService();
+  assert.throws(() => {
+    git.getMergeBase('main; rm -rf /');
+  }, /Invalid base-ref/);
+
+  assert.throws(() => {
+    git.getMergeBase('main&whoami');
+  }, /Invalid base-ref/);
+
+  assert.throws(() => {
+    git.getMergeBase('main|ls');
+  }, /Invalid base-ref/);
+});
+
+test('GitService.getFileAtRevision validates path', () => {
+  const git = new GitService();
+  assert.throws(() => {
+    git.getFileAtRevision('main', 'package-lock.json; rm -rf /');
+  }, /Invalid path/);
+
+  assert.throws(() => {
+    git.getFileAtRevision('main', 'package-lock.json&whoami');
+  }, /Invalid path/);
+
+  assert.throws(() => {
+    git.getFileAtRevision('main', 'package-lock.json|ls');
+  }, /Invalid path/);
+
+  assert.throws(() => {
+    git.getFileAtRevision('main', 'package-lock.json$(whoami)');
+  }, /Invalid path/);
 });

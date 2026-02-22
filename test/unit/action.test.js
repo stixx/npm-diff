@@ -15,6 +15,14 @@ const originalSetOutput = core.setOutput;
 const originalDebug = core.debug;
 const originalGetInput = core.getInput;
 
+const originalGetMergeBase = GitService.prototype.getMergeBase;
+const originalGetChangedFiles = GitService.prototype.getChangedFiles;
+const originalGetFileAtRevision = GitService.prototype.getFileAtRevision;
+
+const originalParseLockfile = lockfileParser.parseLockfile;
+const originalComparePackages = comparer.comparePackages;
+const originalFormatMarkdown = formatter.formatMarkdown;
+
 describe('NpmDiffRunner', () => {
   let runner;
   let outputs = {};
@@ -63,6 +71,14 @@ describe('NpmDiffRunner', () => {
     core.setOutput = originalSetOutput;
     core.debug = originalDebug;
     core.getInput = originalGetInput;
+
+    GitService.prototype.getMergeBase = originalGetMergeBase;
+    GitService.prototype.getChangedFiles = originalGetChangedFiles;
+    GitService.prototype.getFileAtRevision = originalGetFileAtRevision;
+
+    lockfileParser.parseLockfile = originalParseLockfile;
+    comparer.comparePackages = originalComparePackages;
+    formatter.formatMarkdown = originalFormatMarkdown;
   });
 
   it('should run successfully when changes are detected', () => {

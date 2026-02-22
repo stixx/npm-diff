@@ -13,6 +13,17 @@ test('getCompareLink returns Details link for new packages', () => {
   assert.strictEqual(link, '[Details](https://www.npmjs.com/package/pkg?activeTab=versions)');
 });
 
+test('getCompareLink URL-encodes scoped package names', () => {
+  const link = getCompareLink('@types/node', '20.0.0', '20.0.1');
+  assert.strictEqual(link, '[Compare](https://npmdiff.dev/%40types%2Fnode/20.0.0/20.0.1/)');
+
+  const detailsLink = getCompareLink('@types/node', undefined, '20.0.1');
+  assert.strictEqual(
+    detailsLink,
+    '[Details](https://www.npmjs.com/package/%40types%2Fnode?activeTab=versions)'
+  );
+});
+
 test('formatMarkdown returns message for no changes', () => {
   const changes = { added: [], removed: [], updated: [] };
   const markdown = formatMarkdown(changes);

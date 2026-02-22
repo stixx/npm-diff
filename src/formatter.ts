@@ -6,14 +6,15 @@ export function getCompareLink(
   newVersion?: string
 ): string {
   const name = packageName.split('node_modules/').pop() || packageName;
+  const encodedName = encodeURIComponent(name);
 
   if (oldVersion && newVersion && oldVersion !== '-' && newVersion !== '-') {
     const v1 = oldVersion.replace(/^[`^~]/, '').replace(/`$/, '');
     const v2 = newVersion.replace(/^[`^~]/, '').replace(/`$/, '');
-    return `[Compare](https://npmdiff.dev/${name}/${v1}/${v2}/)`;
+    return `[Compare](https://npmdiff.dev/${encodedName}/${v1}/${v2}/)`;
   }
 
-  return `[Details](https://www.npmjs.com/package/${name}?activeTab=versions)`;
+  return `[Details](https://www.npmjs.com/package/${encodedName}?activeTab=versions)`;
 }
 
 export function formatMarkdown(changes: Changes, includeTransitive: boolean = false): string {

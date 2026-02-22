@@ -4,10 +4,10 @@ import * as core from '@actions/core';
 export class GitService {
   private readonly maxBuffer = 50 * 1024 * 1024;
 
-  execute(command: string, options: { stdio?: StdioOptions; ignoreErrors?: boolean } = {}): string {
-    core.debug(`Executing command: ${command}`);
+  execute(args: string[], options: { stdio?: StdioOptions; ignoreErrors?: boolean } = {}): string {
+    core.debug(`Executing command: git ${args.join(' ')}`);
     try {
-      return execSync(command, {
+      return execSync(`git ${args.map((arg) => `"${arg.replace(/"/g, '\\"')}"`).join(' ')}`, {
         maxBuffer: this.maxBuffer,
         stdio: options.stdio || ['pipe', 'pipe', 'ignore'],
       })
@@ -25,17 +25,21 @@ export class GitService {
   }
 
   getMergeBase(baseRef: string): string {
+    if (!/^[\w\-./]+$/.test(baseRef)) {
+      throw new Error(`Invalid base-ref: ${baseRef}`);
+    }
+
     try {
       // Try origin first
-      return this.execute(`git merge-base "origin/${baseRef}" HEAD`);
+      return this.execute(['merge-base', `origin/${baseRef}`, 'HEAD']);
     } catch {
       // Fallback to local ref
-      return this.execute(`git merge-base "${baseRef}" HEAD`);
+      return this.execute(['merge-base', baseRef, 'HEAD']);
     }
   }
 
   getChangedFiles(baseRevision: string): string[] {
-    const diff = this.execute(`git diff --name-only "${baseRevision}" HEAD`);
+    const diff = this.execute(['diff', '--name-only', baseRevision, 'HEAD']);
     return diff
       .split('\n')
       .map((line) => line.trim())
@@ -43,6 +47,9 @@ export class GitService {
   }
 
   getFileAtRevision(revision: string, path: string): string {
-    return this.execute(`git show "${revision}:${path}"`, { ignoreErrors: true });
+    if (!/^[\w\-./]+$/.test(path)) {
+      throw new Error(`Invalid path: ${path}`);
+    }
+    return this.execute(['show', `${revision}:${path}`], { ignoreErrors: true });
   }
 }
