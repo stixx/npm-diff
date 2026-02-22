@@ -1,0 +1,19 @@
+language: "en-US"
+reviews:
+  profile: "chill"
+  high_level_summary: true
+  poem: false
+  review_status: true
+  review_details: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "dist/**"
+      instructions: "Ignore these generated build files."
+    - path: "test/**"
+      instructions: "Verify that the tests are comprehensive and cover the changes."
+    - path: "src/**"
+      instructions: "Ensure code follows the project's modular architecture and separation of concerns."
+chat:
+  auto_reply: true
