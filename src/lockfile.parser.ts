@@ -50,14 +50,24 @@ export function parseLockfile(
       }
     } else if (data.dependencies || data.devDependencies || data.optionalDependencies) {
       core.debug('Detected lockfile v1 (dependencies found)');
-      packages[''] = data as unknown as PackageInfo;
+
+      // Properly construct the root PackageInfo instead of casting the whole lockfile
+      packages[''] = {
+        name: data.packages?.[''] ? (data.packages[''] as PackageInfo).name : undefined,
+        version: data.packages?.[''] ? (data.packages[''] as PackageInfo).version : undefined,
+        dependencies: data.dependencies as Record<string, string>,
+        devDependencies: data.devDependencies as Record<string, string>,
+        optionalDependencies: data.optionalDependencies as Record<string, string>,
+      };
 
       const v1Deps = {
         ...(data.dependencies || {}),
         ...(data.devDependencies || {}),
         ...(data.optionalDependencies || {}),
       };
+
       for (const [name, info] of Object.entries(v1Deps)) {
+        // v1 entries are already objects with version, etc.
         packages[name] = info;
       }
     }

@@ -10,14 +10,22 @@ export function comparePackages(
   const allKeys = new Set([...baseKeys, ...headKeys]);
 
   const resolvedChanges = new Map<string, PackageChange>();
+  const depNameToPaths = new Map<string, string[]>();
 
   for (const key of allKeys) {
     const inBase = !!base[key];
     const inHead = !!head[key];
     const name = key.replace(/^(.*node_modules\/)/, '') || key;
+    const displayName = key.startsWith('node_modules/') ? key.substring('node_modules/'.length) : key;
 
     // Skip local packages for resolved comparison
     if (!key.includes('node_modules')) continue;
+
+    // Track which paths correspond to which dependency name
+    if (!depNameToPaths.has(name)) {
+      depNameToPaths.set(name, []);
+    }
+    depNameToPaths.get(name)?.push(key);
 
     const basePkg = base[key];
     const headPkg = head[key];
@@ -29,15 +37,15 @@ export function comparePackages(
     const headVersion = headPkg?.version;
 
     if (!inBase && inHead) {
-      resolvedChanges.set(name, { name, version: headVersion || 'unknown' });
+      resolvedChanges.set(key, { name: displayName, version: headVersion || 'unknown' });
     } else if (inBase && !inHead) {
-      resolvedChanges.set(name, {
-        name,
+      resolvedChanges.set(key, {
+        name: displayName,
         version: baseVersion || 'unknown',
         oldVersion: baseVersion,
       });
     } else if (baseVersion !== headVersion) {
-      resolvedChanges.set(name, { name, oldVersion: baseVersion, newVersion: headVersion });
+      resolvedChanges.set(key, { name: displayName, oldVersion: baseVersion, newVersion: headVersion });
     }
   }
 
@@ -68,7 +76,12 @@ export function comparePackages(
       const baseConstraint = getConstraint(basePkg);
       const headConstraint = getConstraint(headPkg);
 
-      if (baseConstraint !== headConstraint && !resolvedChanges.has(depName)) {
+      // Check if this dependency already has a resolved change at any of its potential paths
+      const hasResolvedChange = (depNameToPaths.get(depName) || []).some((path) =>
+        resolvedChanges.has(path)
+      );
+
+      if (baseConstraint !== headConstraint && !hasResolvedChange) {
         changes.updated.push({
           name: depName,
           oldVersion: baseConstraint || '-',

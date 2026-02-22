@@ -45,6 +45,8 @@ test('parseLockfile handles lockfile v3 packages', () => {
 
 test('parseLockfile handles lockfile v1 dependencies', () => {
   const content = JSON.stringify({
+    name: 'root-pkg',
+    version: '1.0.0',
     dependencies: {
       pkg: { version: '1.1.0' },
     },
@@ -53,6 +55,7 @@ test('parseLockfile handles lockfile v1 dependencies', () => {
   const packages = parseLockfile('package-lock.json', content);
 
   assert.strictEqual(packages['pkg'].version, '1.1.0');
+  assert.strictEqual(packages[''].dependencies.pkg.version, '1.1.0');
 });
 
 test('parseLockfile filters transitive by default', () => {

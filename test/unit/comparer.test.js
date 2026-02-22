@@ -29,6 +29,24 @@ test('comparePackages identifies added, removed and updated packages', () => {
   assert.strictEqual(changes.updated[0].newVersion, '1.1.0');
 });
 
+test('comparePackages does not collapse nested node_modules', () => {
+  const base = {
+    'node_modules/pkg': { version: '1.0.0' },
+    'node_modules/other/node_modules/pkg': { version: '1.0.0' },
+  };
+  const head = {
+    'node_modules/pkg': { version: '1.1.0' },
+    'node_modules/other/node_modules/pkg': { version: '1.2.0' },
+  };
+
+  const changes = comparePackages(base, head);
+
+  assert.strictEqual(changes.updated.length, 2);
+  const names = changes.updated.map((u) => u.name);
+  assert.ok(names.includes('pkg'));
+  assert.ok(names.includes('other/node_modules/pkg'));
+});
+
 test('comparePackages handles constraint changes', () => {
   const base = {
     '': {

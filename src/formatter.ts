@@ -1,11 +1,11 @@
 import { Changes } from './types';
 
 export function getCompareLink(
-  packageName: string,
+  pathOrName: string,
   oldVersion?: string,
   newVersion?: string
 ): string {
-  const name = packageName.split('node_modules/').pop() || packageName;
+  const name = pathOrName.split('node_modules/').pop() || pathOrName;
   const encodedName = encodeURIComponent(name);
 
   if (oldVersion && newVersion && oldVersion !== '-' && newVersion !== '-') {
