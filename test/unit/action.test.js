@@ -64,7 +64,7 @@ test('formatMarkdown formats changes as a table', () => {
   );
   assert.match(
     markdown,
-    /u \| Upgraded \| `1.0.0` \| `1.1.0` \| \[Compare\]\(https:\/\/npmdiff.dev\/compare\/u\/1.0.0\/1.1.0\)/
+    /u \| Upgraded \| `1.0.0` \| `1.1.0` \| \[Compare\]\(https:\/\/npmdiff\.dev\/u\/1\.0\.0\/1\.1\.0\/\)/
   );
 });
 

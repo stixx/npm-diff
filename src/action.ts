@@ -244,7 +244,7 @@ export function getCompareLink(
 
     // Check if it's a valid version comparison (not a constraint like ^1.0.0 vs ^1.1.0)
     // Actually npmdiff.dev might handle it, but it's better with exact versions.
-    return `[Compare](https://npmdiff.dev/compare/${name}/${v1}/${v2})`;
+    return `[Compare](https://npmdiff.dev/${name}/${v1}/${v2}/)`;
   }
 
   return `[Details](https://www.npmjs.com/package/${name}?activeTab=versions)`;
