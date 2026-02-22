@@ -55,6 +55,9 @@ test('parseLockfile handles lockfile v1 dependencies', () => {
   const packages = parseLockfile('package-lock.json', content);
 
   assert.strictEqual(packages['pkg'].version, '1.1.0');
+  assert.strictEqual(packages[''].name, 'root-pkg');
+  assert.strictEqual(packages[''].version, '1.0.0');
+  // Root dependencies should also be strings if normalized
   assert.strictEqual(packages[''].dependencies.pkg.version, '1.1.0');
 });
 

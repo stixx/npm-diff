@@ -90,3 +90,25 @@ test('comparePackages ignores constraint change if version also changed', () => 
   assert.strictEqual(changes.updated[0].oldVersion, '1.0.0');
   assert.strictEqual(changes.updated[0].newVersion, '1.1.0');
 });
+
+test('comparePackages reports constraint change even if transitive version also changed', () => {
+  const base = {
+    '': {
+      dependencies: { pkg: '^1.0.0' },
+    },
+    'node_modules/other/node_modules/pkg': { version: '1.0.0' },
+  };
+  const head = {
+    '': {
+      dependencies: { pkg: '^1.1.0' },
+    },
+    'node_modules/other/node_modules/pkg': { version: '1.1.0' },
+  };
+
+  const changes = comparePackages(base, head);
+  // It should have 2 updated entries: one for the transitive update and one for the root constraint change
+  assert.strictEqual(changes.updated.length, 2);
+  const names = changes.updated.map((u) => u.name);
+  assert.ok(names.includes('pkg'));
+  assert.ok(names.includes('other/node_modules/pkg'));
+});

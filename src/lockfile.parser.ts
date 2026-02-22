@@ -51,10 +51,10 @@ export function parseLockfile(
     } else if (data.dependencies || data.devDependencies || data.optionalDependencies) {
       core.debug('Detected lockfile v1 (dependencies found)');
 
-      // Properly construct the root PackageInfo instead of casting the whole lockfile
+      // Properly construct the root PackageInfo
       packages[''] = {
-        name: data.packages?.[''] ? (data.packages[''] as PackageInfo).name : undefined,
-        version: data.packages?.[''] ? (data.packages[''] as PackageInfo).version : undefined,
+        name: data.name as string,
+        version: data.version as string,
         dependencies: data.dependencies as Record<string, string>,
         devDependencies: data.devDependencies as Record<string, string>,
         optionalDependencies: data.optionalDependencies as Record<string, string>,
@@ -67,8 +67,12 @@ export function parseLockfile(
       };
 
       for (const [name, info] of Object.entries(v1Deps)) {
-        // v1 entries are already objects with version, etc.
-        packages[name] = info;
+        // Normalize v1 entries to string versions if they are objects
+        if (info && typeof info === 'object' && (info as PackageInfo).version) {
+          packages[name] = (info as PackageInfo).version as string;
+        } else {
+          packages[name] = info as string;
+        }
       }
     }
 

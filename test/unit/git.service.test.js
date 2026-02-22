@@ -11,10 +11,8 @@ test('GitService.execute runs a command and returns output', () => {
 
 test('GitService.execute handles arguments with spaces', () => {
   const git = new GitService();
-  // Using a git command that can take arbitrary string as argument and echo it back
-  // git log -1 --format=%B is good but needs a commit
-  // We can use git help -g to see if it runs
-  const output = git.execute(['version']);
+  // Call execute with a value that includes spaces to exercise quoting logic
+  const output = git.execute(['-c', 'user.name=Alice Smith', 'version']);
   assert.match(output, /git version/);
 });
 

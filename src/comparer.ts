@@ -15,7 +15,6 @@ export function comparePackages(
   for (const key of allKeys) {
     const inBase = !!base[key];
     const inHead = !!head[key];
-    const name = key.replace(/^(.*node_modules\/)/, '') || key;
     const displayName = key.startsWith('node_modules/')
       ? key.substring('node_modules/'.length)
       : key;
@@ -24,10 +23,11 @@ export function comparePackages(
     if (!key.includes('node_modules')) continue;
 
     // Track which paths correspond to which dependency name
-    if (!depNameToPaths.has(name)) {
-      depNameToPaths.set(name, []);
+    const depNameResolved = key.replace(/^(.*node_modules\/)/, '');
+    if (!depNameToPaths.has(depNameResolved)) {
+      depNameToPaths.set(depNameResolved, []);
     }
-    depNameToPaths.get(name)?.push(key);
+    depNameToPaths.get(depNameResolved)?.push(key);
 
     const basePkg = base[key];
     const headPkg = head[key];
@@ -82,10 +82,11 @@ export function comparePackages(
       const baseConstraint = getConstraint(basePkg);
       const headConstraint = getConstraint(headPkg);
 
-      // Check if this dependency already has a resolved change at any of its potential paths
-      const hasResolvedChange = (depNameToPaths.get(depName) || []).some((path) =>
-        resolvedChanges.has(path)
-      );
+      // Check if this dependency already has a resolved change at any of its direct/workspace paths
+      const isDirectPath = (path: string) => (path.match(/node_modules\//g) || []).length <= 1;
+      const hasResolvedChange = (depNameToPaths.get(depName) || [])
+        .filter(isDirectPath)
+        .some((path) => resolvedChanges.has(path));
 
       if (baseConstraint !== headConstraint && !hasResolvedChange) {
         changes.updated.push({

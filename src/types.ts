@@ -8,6 +8,8 @@ export interface PackageInfo {
 }
 
 export interface LockfileData {
+  name?: string;
+  version?: string;
   packages?: Record<string, PackageInfo | string>;
   dependencies?: Record<string, PackageInfo | string>;
   devDependencies?: Record<string, PackageInfo | string>;
