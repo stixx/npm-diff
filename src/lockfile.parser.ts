@@ -11,7 +11,7 @@ export function parseLockfile(
     const normalized: Record<string, string> = {};
     if (!deps) return normalized;
     for (const [name, info] of Object.entries(deps)) {
-      if (info && typeof info === 'object' && (info as PackageInfo).version) {
+      if (info && typeof info === 'object' && 'version' in (info as object)) {
         normalized[name] = (info as PackageInfo).version as string;
       } else {
         normalized[name] = info as string;
@@ -92,7 +92,7 @@ export function parseLockfile(
 
       for (const [name, info] of Object.entries(v1Deps)) {
         // Normalize v1 entries to string versions if they are objects
-        if (info && typeof info === 'object' && (info as PackageInfo).version) {
+        if (info && typeof info === 'object' && 'version' in (info as object)) {
           packages[name] = (info as PackageInfo).version as string;
         } else {
           packages[name] = info as string;
