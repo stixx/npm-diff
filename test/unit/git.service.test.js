@@ -64,3 +64,45 @@ test('GitService.getFileAtRevision validates path', () => {
     git.getFileAtRevision('main', 'package-lock.json$(whoami)');
   }, /Invalid path/);
 });
+
+test('GitService.getFileAtRevision validates revision', () => {
+  const git = new GitService();
+  assert.throws(() => {
+    git.getFileAtRevision('main; rm -rf /', 'package-lock.json');
+  }, /Invalid revision/);
+
+  assert.throws(() => {
+    git.getFileAtRevision('main&whoami', 'package-lock.json');
+  }, /Invalid revision/);
+
+  assert.throws(() => {
+    git.getFileAtRevision('main|ls', 'package-lock.json');
+  }, /Invalid revision/);
+
+  assert.throws(() => {
+    git.getFileAtRevision('main$(whoami)', 'package-lock.json');
+  }, /Invalid revision/);
+
+  assert.throws(() => {
+    git.getFileAtRevision('main:something', 'package-lock.json');
+  }, /Invalid revision/);
+});
+
+test('GitService.getChangedFiles validates baseRevision', () => {
+  const git = new GitService();
+  assert.throws(() => {
+    git.getChangedFiles('main; rm -rf /');
+  }, /Invalid base-revision/);
+
+  assert.throws(() => {
+    git.getChangedFiles('main&whoami');
+  }, /Invalid base-revision/);
+
+  assert.throws(() => {
+    git.getChangedFiles('main|ls');
+  }, /Invalid base-revision/);
+
+  assert.throws(() => {
+    git.getChangedFiles('main$(whoami)');
+  }, /Invalid base-revision/);
+});

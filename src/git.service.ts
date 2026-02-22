@@ -39,6 +39,9 @@ export class GitService {
   }
 
   getChangedFiles(baseRevision: string): string[] {
+    if (!/^[\w\-./]+$/.test(baseRevision)) {
+      throw new Error(`Invalid base-revision: ${baseRevision}`);
+    }
     const diff = this.execute(['diff', '--name-only', baseRevision, 'HEAD']);
     return diff
       .split('\n')
@@ -47,6 +50,9 @@ export class GitService {
   }
 
   getFileAtRevision(revision: string, path: string): string {
+    if (!/^[\w\-./]+$/.test(revision)) {
+      throw new Error(`Invalid revision: ${revision}`);
+    }
     if (!/^[\w\-./]+$/.test(path)) {
       throw new Error(`Invalid path: ${path}`);
     }

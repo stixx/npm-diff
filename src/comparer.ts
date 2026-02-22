@@ -16,7 +16,9 @@ export function comparePackages(
     const inBase = !!base[key];
     const inHead = !!head[key];
     const name = key.replace(/^(.*node_modules\/)/, '') || key;
-    const displayName = key.startsWith('node_modules/') ? key.substring('node_modules/'.length) : key;
+    const displayName = key.startsWith('node_modules/')
+      ? key.substring('node_modules/'.length)
+      : key;
 
     // Skip local packages for resolved comparison
     if (!key.includes('node_modules')) continue;
@@ -45,7 +47,11 @@ export function comparePackages(
         oldVersion: baseVersion,
       });
     } else if (baseVersion !== headVersion) {
-      resolvedChanges.set(key, { name: displayName, oldVersion: baseVersion, newVersion: headVersion });
+      resolvedChanges.set(key, {
+        name: displayName,
+        oldVersion: baseVersion,
+        newVersion: headVersion,
+      });
     }
   }
 
