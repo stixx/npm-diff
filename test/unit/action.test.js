@@ -1,121 +1,131 @@
 /* eslint-disable @typescript-eslint/no-require-imports, no-undef */
-const { test } = require('node:test');
+const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert');
-const { comparePackages, formatMarkdown, parseLockfile } = require('../../src/action.ts');
+const fs = require('fs');
+const core = require('@actions/core');
+const { NpmDiffRunner } = require('../../src/action');
+const { GitService } = require('../../src/git.service');
+const lockfileParser = require('../../src/lockfile.parser');
+const comparer = require('../../src/comparer');
+const formatter = require('../../src/formatter');
 
-test('comparePackages identifies added, removed and updated packages', () => {
-  const base = {
-    'node_modules/old-pkg': { version: '1.0.0' },
-    'node_modules/updated-pkg': { version: '1.0.0' },
-  };
-  const head = {
-    'node_modules/updated-pkg': { version: '1.1.0' },
-    'node_modules/new-pkg': { version: '2.0.0' },
-  };
+// Mocking dependencies
+const originalExistsSync = fs.existsSync;
+const originalSetOutput = core.setOutput;
+const originalDebug = core.debug;
+const originalGetInput = core.getInput;
 
-  const changes = comparePackages(base, head);
+describe('NpmDiffRunner', () => {
+  let runner;
+  let outputs = {};
+  let inputs = {};
+  let debugLogs = [];
 
-  assert.strictEqual(changes.added.length, 1);
-  assert.strictEqual(changes.added[0].name, 'new-pkg');
-  assert.strictEqual(changes.added[0].version, '2.0.0');
+  beforeEach(() => {
+    runner = new NpmDiffRunner();
+    outputs = {};
+    inputs = {
+      'base-ref': 'main',
+      path: 'package-lock.json',
+      'include-transitive': 'false',
+    };
+    debugLogs = [];
 
-  assert.strictEqual(changes.removed.length, 1);
-  assert.strictEqual(changes.removed[0].name, 'old-pkg');
-  assert.strictEqual(changes.removed[0].version, '1.0.0');
+    // Mock core.setOutput
+    core.setOutput = (name, value) => {
+      outputs[name] = value;
+    };
 
-  assert.strictEqual(changes.updated.length, 1);
-  assert.strictEqual(changes.updated[0].name, 'updated-pkg');
-  assert.strictEqual(changes.updated[0].oldVersion, '1.0.0');
-  assert.strictEqual(changes.updated[0].newVersion, '1.1.0');
-});
+    // Mock core.debug
+    core.debug = (msg) => {
+      debugLogs.push(msg);
+    };
 
-test('comparePackages handles empty lockfiles', () => {
-  const base = {};
-  const head = {};
-  const changes = comparePackages(base, head);
-  assert.strictEqual(changes.added.length, 0);
-  assert.strictEqual(changes.removed.length, 0);
-  assert.strictEqual(changes.updated.length, 0);
-});
+    // Mock core.getInput
+    core.getInput = (name) => inputs[name] || '';
 
-test('formatMarkdown returns message for no changes', () => {
-  const changes = { added: [], removed: [], updated: [] };
-  const markdown = formatMarkdown(changes);
-  assert.match(markdown, /_No package changes detected_/);
-  assert.match(markdown, /Note: Transitive dependencies are excluded/);
-  assert.match(markdown, /Note: If `package-lock.json` was modified/);
-});
+    // Mock fs.existsSync
+    fs.existsSync = () => true;
 
-test('formatMarkdown formats changes as a table', () => {
-  const changes = {
-    added: [{ name: 'a', version: '1.0.0' }],
-    removed: [{ name: 'r', version: '1.0.0' }],
-    updated: [{ name: 'u', oldVersion: '1.0.0', newVersion: '1.1.0' }],
-  };
-  const markdown = formatMarkdown(changes);
-  assert.match(markdown, /Packages \| Operation \| Base \| Target \| Link/);
-  assert.match(
-    markdown,
-    /a \| Added \| - \| `1.0.0` \| \[Details\]\(https:\/\/www.npmjs.com\/package\/a\?activeTab=versions\)/
-  );
-  assert.match(
-    markdown,
-    /r \| Removed \| `1.0.0` \| - \| \[Details\]\(https:\/\/www.npmjs.com\/package\/r\?activeTab=versions\)/
-  );
-  assert.match(
-    markdown,
-    /u \| Upgraded \| `1.0.0` \| `1.1.0` \| \[Compare\]\(https:\/\/npmdiff\.dev\/u\/1\.0\.0\/1\.1\.0\/\)/
-  );
-});
+    // Mock GitService methods
+    GitService.prototype.getMergeBase = () => 'base-sha';
+    GitService.prototype.getChangedFiles = () => ['package-lock.json'];
+    GitService.prototype.getFileAtRevision = () => '{}';
 
-test('parseLockfile handles package.json and devDependencies', () => {
-  const content = JSON.stringify({
-    dependencies: { 'prod-pkg': '1.0.0' },
-    devDependencies: { 'dev-pkg': '2.0.0' },
-    optionalDependencies: { 'opt-pkg': '3.0.0' },
+    // Mock other modules
+    lockfileParser.parseLockfile = () => ({});
+    comparer.comparePackages = () => ({ added: [], removed: [], updated: [] });
+    formatter.formatMarkdown = () => 'markdown-diff';
   });
 
-  const packages = parseLockfile('package.json', content);
-
-  assert.strictEqual(packages['prod-pkg'].version, '1.0.0');
-  assert.strictEqual(packages['dev-pkg'].version, '2.0.0');
-  assert.strictEqual(packages['opt-pkg'].version, '3.0.0');
-});
-
-test('parseLockfile handles lockfile v3 packages', () => {
-  const content = JSON.stringify({
-    packages: {
-      '': {
-        name: 'root',
-        version: '1.0.0',
-        dependencies: {
-          pkg: '^1.1.0',
-        },
-      },
-      'node_modules/pkg': { version: '1.1.0' },
-    },
+  afterEach(() => {
+    fs.existsSync = originalExistsSync;
+    core.setOutput = originalSetOutput;
+    core.debug = originalDebug;
+    core.getInput = originalGetInput;
   });
 
-  const packages = parseLockfile('package-lock.json', content);
+  it('should run successfully when changes are detected', () => {
+    runner.run();
 
-  assert.deepStrictEqual(packages[''], {
-    name: 'root',
-    version: '1.0.0',
-    dependencies: {
-      pkg: '^1.1.0',
-    },
-  });
-  assert.strictEqual(packages['node_modules/pkg'].version, '1.1.0');
-});
-
-test('parseLockfile handles lockfile v1 dependencies', () => {
-  const content = JSON.stringify({
-    dependencies: {
-      pkg: { version: '1.1.0' },
-    },
+    assert.strictEqual(outputs['has_changes'], 'true');
+    assert.strictEqual(outputs['diff'], 'markdown-diff');
+    assert.strictEqual(outputs['added_count'], '0');
+    assert.strictEqual(outputs['removed_count'], '0');
+    assert.strictEqual(outputs['updated_count'], '0');
   });
 
-  const packages = parseLockfile('package-lock.json', content);
+  it('should handle missing package-lock.json', () => {
+    fs.existsSync = () => false;
 
-  assert.strictEqual(packages['pkg'].version, '1.1.0');
+    runner.run();
+
+    assert.strictEqual(outputs['has_changes'], 'false');
+    assert.match(outputs['diff'], /No package-lock.json found/);
+  });
+
+  it('should handle git merge-base failure', () => {
+    GitService.prototype.getMergeBase = () => {
+      throw new Error('git error');
+    };
+
+    runner.run();
+
+    assert.strictEqual(outputs['has_changes'], 'false');
+    assert.match(outputs['diff'], /Error finding merge base/);
+  });
+
+  it('should handle no changes to package-lock.json', () => {
+    GitService.prototype.getChangedFiles = () => ['other-file.txt'];
+
+    runner.run();
+
+    assert.strictEqual(outputs['has_changes'], 'false');
+    assert.match(outputs['diff'], /No changes to package-lock.json/);
+  });
+
+  it('should handle git diff failure', () => {
+    GitService.prototype.getChangedFiles = () => {
+      throw new Error('diff error');
+    };
+
+    runner.run();
+
+    assert.strictEqual(outputs['has_changes'], 'false');
+    assert.match(outputs['diff'], /Error running git diff/);
+  });
+
+  it('should correctly count changes', () => {
+    comparer.comparePackages = () => ({
+      added: [{ name: 'pkg1' }],
+      removed: [{ name: 'pkg2' }, { name: 'pkg3' }],
+      updated: [{ name: 'pkg4' }, { name: 'pkg5' }, { name: 'pkg6' }],
+    });
+
+    runner.run();
+
+    assert.strictEqual(outputs['added_count'], '1');
+    assert.strictEqual(outputs['removed_count'], '2');
+    assert.strictEqual(outputs['updated_count'], '3');
+  });
 });
