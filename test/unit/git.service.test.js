@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports, no-undef */
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { GitService } = require('../../src/git.service.ts');
+const { GitService } = require('../../src/git.service');
 
 test('GitService.execute runs a command and returns output', () => {
   const git = new GitService();
@@ -11,9 +11,11 @@ test('GitService.execute runs a command and returns output', () => {
 
 test('GitService.execute handles arguments with spaces', () => {
   const git = new GitService();
-  // Call execute with a value that includes spaces to exercise quoting logic
-  const output = git.execute(['-c', 'user.name=Alice Smith', 'version']);
-  assert.match(output, /git version/);
+  // Use git config to verify that arguments with spaces are correctly preserved and echoed back
+  const name = 'Alice Smith';
+  git.execute(['config', 'user.name', name]);
+  const output = git.execute(['config', 'user.name']);
+  assert.strictEqual(output, name);
 });
 
 test('GitService.execute throws on error if not ignored', () => {
@@ -103,4 +105,87 @@ test('GitService.getChangedFiles validates baseRevision', () => {
   assert.throws(() => {
     git.getChangedFiles('main$(whoami)');
   }, /Invalid base-revision/);
+});
+
+test('GitService.getMergeBase happy path', () => {
+  const git = new GitService();
+  const originalExecute = git.execute;
+  let calls = [];
+  git.execute = (args) => {
+    calls.push(args);
+    if (args[1] === 'origin/main') return 'merge-base-sha';
+    throw new Error('fail');
+  };
+
+  try {
+    const result = git.getMergeBase('main');
+    assert.strictEqual(result, 'merge-base-sha');
+    assert.deepStrictEqual(calls, [['merge-base', 'origin/main', 'HEAD']]);
+  } finally {
+    git.execute = originalExecute;
+  }
+});
+
+test('GitService.getMergeBase fallback path', () => {
+  const git = new GitService();
+  const originalExecute = git.execute;
+  let calls = [];
+  git.execute = (args) => {
+    calls.push(args);
+    if (args[1] === 'origin/main') throw new Error('no origin');
+    return 'local-merge-base-sha';
+  };
+
+  try {
+    const result = git.getMergeBase('main');
+    assert.strictEqual(result, 'local-merge-base-sha');
+    assert.deepStrictEqual(calls, [
+      ['merge-base', 'origin/main', 'HEAD'],
+      ['merge-base', 'main', 'HEAD'],
+    ]);
+  } finally {
+    git.execute = originalExecute;
+  }
+});
+
+test('GitService.getChangedFiles happy path', () => {
+  const git = new GitService();
+  const originalExecute = git.execute;
+  git.execute = () => '  file1.txt  \n\n  file2.txt  \n  ';
+
+  try {
+    const result = git.getChangedFiles('base-sha');
+    assert.deepStrictEqual(result, ['file1.txt', 'file2.txt']);
+  } finally {
+    git.execute = originalExecute;
+  }
+});
+
+test('GitService.getFileAtRevision happy path', () => {
+  const git = new GitService();
+  const originalExecute = git.execute;
+  git.execute = () => 'file content';
+
+  try {
+    const result = git.getFileAtRevision('sha', 'path/to/file');
+    assert.strictEqual(result, 'file content');
+  } finally {
+    git.execute = originalExecute;
+  }
+});
+
+test('GitService.getFileAtRevision missing file', () => {
+  const git = new GitService();
+  const originalExecute = git.execute;
+  git.execute = (args, options) => {
+    if (options.ignoreErrors) return '';
+    throw new Error('not found');
+  };
+
+  try {
+    const result = git.getFileAtRevision('sha', 'path/to/file');
+    assert.strictEqual(result, '');
+  } finally {
+    git.execute = originalExecute;
+  }
 });

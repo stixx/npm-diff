@@ -7,6 +7,19 @@ export function parseLockfile(
   contentStr: string | null = null,
   includeTransitive: boolean = false
 ): Record<string, PackageInfo> {
+  const normalizeV1Deps = (deps?: Record<string, PackageInfo | string>) => {
+    const normalized: Record<string, string> = {};
+    if (!deps) return normalized;
+    for (const [name, info] of Object.entries(deps)) {
+      if (info && typeof info === 'object' && (info as PackageInfo).version) {
+        normalized[name] = (info as PackageInfo).version as string;
+      } else {
+        normalized[name] = info as string;
+      }
+    }
+    return normalized;
+  };
+
   try {
     const content = contentStr || fs.readFileSync(path, 'utf8');
     const data: LockfileData = JSON.parse(content);
@@ -25,13 +38,20 @@ export function parseLockfile(
         for (const key of localPackageKeys) {
           const pkg = data.packages[key] as PackageInfo;
           if (pkg) {
-            packages[key] = pkg;
+            const normalizedPkg: PackageInfo = {
+              ...pkg,
+              dependencies: normalizeV1Deps(pkg.dependencies),
+              devDependencies: normalizeV1Deps(pkg.devDependencies),
+              optionalDependencies: normalizeV1Deps(pkg.optionalDependencies),
+              peerDependencies: normalizeV1Deps(pkg.peerDependencies),
+            };
+            packages[key] = normalizedPkg;
 
             const deps = {
-              ...(pkg.dependencies || {}),
-              ...(pkg.devDependencies || {}),
-              ...(pkg.optionalDependencies || {}),
-              ...(pkg.peerDependencies || {}),
+              ...(normalizedPkg.dependencies || {}),
+              ...(normalizedPkg.devDependencies || {}),
+              ...(normalizedPkg.optionalDependencies || {}),
+              ...(normalizedPkg.peerDependencies || {}),
             };
             Object.keys(deps).forEach((d) => directDeps.add(d));
           }
@@ -55,9 +75,13 @@ export function parseLockfile(
       packages[''] = {
         name: data.name as string,
         version: data.version as string,
-        dependencies: data.dependencies as Record<string, string>,
-        devDependencies: data.devDependencies as Record<string, string>,
-        optionalDependencies: data.optionalDependencies as Record<string, string>,
+        dependencies: normalizeV1Deps(data.dependencies as Record<string, PackageInfo | string>),
+        devDependencies: normalizeV1Deps(
+          data.devDependencies as Record<string, PackageInfo | string>
+        ),
+        optionalDependencies: normalizeV1Deps(
+          data.optionalDependencies as Record<string, PackageInfo | string>
+        ),
       };
 
       const v1Deps = {
@@ -86,7 +110,11 @@ export function parseLockfile(
     }
 
     return normalized;
-  } catch {
+  } catch (err: unknown) {
+    core.debug(`Failed to parse lockfile at ${path}`);
+    if (err instanceof Error) {
+      core.debug(err.message);
+    }
     return {};
   }
 }

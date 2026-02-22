@@ -39,6 +39,9 @@ test('parseLockfile handles lockfile v3 packages', () => {
     dependencies: {
       pkg: '^1.1.0',
     },
+    devDependencies: {},
+    optionalDependencies: {},
+    peerDependencies: {},
   });
   assert.strictEqual(packages['node_modules/pkg'].version, '1.1.0');
 });
@@ -57,8 +60,8 @@ test('parseLockfile handles lockfile v1 dependencies', () => {
   assert.strictEqual(packages['pkg'].version, '1.1.0');
   assert.strictEqual(packages[''].name, 'root-pkg');
   assert.strictEqual(packages[''].version, '1.0.0');
-  // Root dependencies should also be strings if normalized
-  assert.strictEqual(packages[''].dependencies.pkg.version, '1.1.0');
+  // Root dependencies are normalized to string version constraints
+  assert.strictEqual(packages[''].dependencies.pkg, '1.1.0');
 });
 
 test('parseLockfile filters transitive by default', () => {
