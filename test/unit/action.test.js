@@ -41,7 +41,9 @@ test('comparePackages handles empty lockfiles', () => {
 test('formatMarkdown returns message for no changes', () => {
   const changes = { added: [], removed: [], updated: [] };
   const markdown = formatMarkdown(changes);
-  assert.strictEqual(markdown, '_No package changes detected_');
+  assert.match(markdown, /_No package changes detected_/);
+  assert.match(markdown, /Note: Transitive dependencies are excluded/);
+  assert.match(markdown, /Note: If `package-lock.json` was modified/);
 });
 
 test('formatMarkdown formats changes as a table', () => {

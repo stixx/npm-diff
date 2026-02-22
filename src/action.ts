@@ -4,6 +4,10 @@ import * as core from '@actions/core';
 
 interface PackageInfo {
   version?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
 }
 
 interface LockfileData {
@@ -41,19 +45,30 @@ export function parseLockfile(
       if (includeTransitive) {
         packages = { ...data.packages };
       } else {
-        // For lockfile v3, we only want to compare the direct dependencies
-        // to keep the diff clean and avoid GitHub PR comment limits.
-        // Direct dependencies are listed in the root package ('')
-        const rootPackage = data.packages[''] as LockfileData | undefined;
-        const directDeps = new Set([
-          ...Object.keys(rootPackage?.dependencies || {}),
-          ...Object.keys(rootPackage?.devDependencies || {}),
-          ...Object.keys(rootPackage?.optionalDependencies || {}),
-        ]);
+        // Direct dependencies are listed in the dependencies blocks of the root package ('')
+        // and any workspace packages (local packages that don't have node_modules in their path).
+        const directDeps = new Set<string>();
+        const localPackageKeys = Object.keys(data.packages).filter(
+          (key) => key === '' || !key.includes('node_modules')
+        );
+
+        for (const key of localPackageKeys) {
+          const pkg = data.packages[key] as PackageInfo;
+          if (pkg) {
+            const deps = {
+              ...(pkg.dependencies || {}),
+              ...(pkg.devDependencies || {}),
+              ...(pkg.optionalDependencies || {}),
+              ...(pkg.peerDependencies || {}),
+            };
+            Object.keys(deps).forEach((d) => directDeps.add(d));
+          }
+        }
 
         for (const [key, info] of Object.entries(data.packages)) {
           if (key === '') continue;
           const name = key.replace(/^node_modules\//, '');
+          // We only want top-level node_modules entries that are in our directDeps list
           if (directDeps.has(name) && !key.includes('/node_modules/')) {
             packages[key] = info;
           }
@@ -105,17 +120,26 @@ export function comparePackages(
     const name = pkg.replace(/^node_modules\//, '');
 
     // Skip packages that have no version (e.g., aliases or metadata without version)
-    if (inHead && !head[pkg].version) continue;
-    if (inBase && !base[pkg].version && !inHead) continue;
+    if (inHead && !head[pkg].version) {
+      core.debug(`Skipping package ${pkg} in head: no version found`);
+      continue;
+    }
+    if (inBase && !base[pkg].version && !inHead) {
+      core.debug(`Skipping package ${pkg} in base: no version found`);
+      continue;
+    }
 
     if (!inBase && inHead) {
+      core.debug(`Package added: ${name} (${head[pkg].version})`);
       changes.added.push({ name, version: head[pkg].version || 'unknown' });
     } else if (inBase && !inHead) {
+      core.debug(`Package removed: ${name} (${base[pkg].version})`);
       changes.removed.push({ name, version: base[pkg].version || 'unknown' });
     } else if (inBase && inHead) {
       const baseVersion = base[pkg].version;
       const headVersion = head[pkg].version;
       if (baseVersion && headVersion && baseVersion !== headVersion) {
+        core.debug(`Package updated: ${name} (${baseVersion} -> ${headVersion})`);
         changes.updated.push({ name, oldVersion: baseVersion, newVersion: headVersion });
       }
     }
@@ -130,11 +154,18 @@ export function getCompareLink(packageName: string): string {
   return `[Compare](https://www.npmjs.com/package/${name}?activeTab=versions)`;
 }
 
-export function formatMarkdown(changes: Changes): string {
+export function formatMarkdown(changes: Changes, includeTransitive: boolean = false): string {
   const totalChanges = changes.added.length + changes.removed.length + changes.updated.length;
 
   if (totalChanges === 0) {
-    return '_No package changes detected_';
+    let message = '_No package changes detected_';
+    if (!includeTransitive) {
+      message +=
+        '\n\nNote: Transitive dependencies are excluded. Use `include-transitive: true` to see all changes.';
+    }
+    message +=
+      '\n\nNote: If `package-lock.json` was modified, the changes might only affect metadata (like integrity hashes) or resolved URLs, rather than version numbers.';
+    return message;
   }
 
   let output = 'Packages | Operation | Base | Target | Link\n';
@@ -292,7 +323,7 @@ export function run(): void {
   core.debug(`Head packages found: ${Object.keys(head).length}`);
 
   const changes = comparePackages(base, head);
-  const markdown = formatMarkdown(changes);
+  const markdown = formatMarkdown(changes, includeTransitive);
 
   core.setOutput('diff', markdown);
   core.setOutput('added_count', changes.added.length.toString());
